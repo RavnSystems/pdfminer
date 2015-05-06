@@ -38,7 +38,8 @@ class PDFLayoutAnalyzer(PDFTextDevice):
         (x0, y0) = apply_matrix_pt(ctm, (x0, y0))
         (x1, y1) = apply_matrix_pt(ctm, (x1, y1))
         mediabox = (0, 0, abs(x0-x1), abs(y0-y1))
-        self.cur_item = LTPage(self.pageno, mediabox)
+        cropbox = page.cropbox
+        self.cur_item = LTPage(self.pageno, mediabox, cropbox)
         return
 
     def end_page(self, page):
@@ -388,6 +389,217 @@ class HTMLConverter(PDFConverter):
         render(ltpage)
         self._yoffset += self.pagemargin
         return
+
+    def close(self):
+        self.write_footer()
+        return
+
+class HTMLConverter2(PDFConverter):
+
+    RECT_COLORS = {
+        #'char': 'green',
+        'figure': 'yellow',
+        'textline': 'magenta',
+        'textbox': 'cyan',
+        'textgroup': 'red',
+        'curve': 'black',
+        'page': 'gray',
+    }
+
+    TEXT_COLORS = {
+        'textbox': 'blue',
+        'char': 'black',
+    }
+
+    def __init__(self, rsrcmgr, outfp, codec='utf-8', pageno=1, laparams=None,
+                 scale=1, fontscale=1.0, layoutmode='normal', showpageno=True,
+                 pagemargin=50, imagewriter=None, debug=0,
+                 rect_colors={'curve': 'black', 'page': 'gray'},
+                 text_colors={'char': 'black'}):
+        PDFConverter.__init__(self, rsrcmgr, outfp, codec=codec, pageno=pageno, laparams=laparams)
+        self.scale = scale
+        self.fontscale = fontscale
+        self.layoutmode = layoutmode
+        self.showpageno = showpageno
+        self.pagemargin = pagemargin
+        self.imagewriter = imagewriter
+        self.rect_colors = rect_colors
+        self.text_colors = text_colors
+        if debug:
+            self.rect_colors.update(self.RECT_COLORS)
+            self.text_colors.update(self.TEXT_COLORS)
+        self._yoffset = self.pagemargin
+        self._font = None
+        self._fontstack = []
+        self.write_header()
+        return
+
+    def write(self, text):
+        self.outfp.write(text)
+        return
+
+    def write_header(self):
+        self.write('<html>\n<head>\n')
+        self.write('   <meta http-equiv="Content-Type" content="text/html; charset=%s"/>\n' % self.codec)
+        self.write('</head>\n<body>\n')
+        return
+
+    def write_footer(self):
+        if self.showpageno:
+            self.write('<div style="position:absolute; top:0px;">Page: %s</div>\n' %
+                   ', '.join('<a href="#%s">%s</a>' % (i, i) for i in xrange(1, self.pageno)))
+        self.write('</body>\n</html>\n')
+        return
+
+    def write_text(self, text):
+        self.write(enc(text, self.codec))
+        return
+
+    def place_rect(self, color, borderwidth, x, y, w, h):
+#        color = self.rect_colors.get(color)
+#        if color is not None:
+#            self.write('<span style="position:absolute; border: %s %dpx solid; '
+#                       'left:%dpx; top:%dpx; width:%dpx; height:%dpx;"></span>\n' %
+#                       (color, borderwidth,
+#                        x*self.scale, (self._yoffset-y)*self.scale,
+#                        w*self.scale, h*self.scale))
+        return
+
+    def place_border(self, color, borderwidth, item):
+#        self.place_rect(color, borderwidth, item.x0, item.y1, item.width, item.height)
+        return
+
+    def place_image(self, item, borderwidth, x, y, w, h):
+        if self.imagewriter is not None:
+            name = self.imagewriter.export_image(item)
+            self.write('<img src="%s" border="%d" style="position:absolute; left:%dpx; top:%dpx;" '
+                       'width="%d" height="%d" />\n' %
+                       (enc(name), borderwidth,
+                        x*self.scale, (self._yoffset-y)*self.scale,
+                        w*self.scale, h*self.scale))
+        return
+
+    def place_text(self, color, text, x, y, size):
+        color = self.text_colors.get(color)
+        if color is not None:
+            self.write('    <span style="position:absolute; color:%s; left:%dpx; top:%dpx; font-size:%dpx;">\n' %
+                       (color, x*self.scale, (self._yoffset-y)*self.scale, size*self.scale*self.fontscale))
+            self.write_text(text)
+            self.write('    </span>\n')
+        return
+
+    def begin_div(self, color, borderwidth, x, y, w, h, writing_mode=False):
+        self._fontstack.append(self._font)
+        self._font = None
+        self.write('  <div style="position:absolute; border: %s %dpx solid; writing-mode:%s; '
+                   'left:%dpx; top:%dpx; width:%dpx; height:%dpx;">\n' %
+                   (color, borderwidth, writing_mode,
+                    x*self.scale, (self._yoffset-y)*self.scale,
+                    w*self.scale, h*self.scale))
+        return
+
+    def end_div(self, color):
+        if self._font is not None:
+            self.write('    </span>\n')
+        self._font = self._fontstack.pop()
+        self.write('  </div>\n')
+        return
+
+    def put_text(self, text, fontname, fontsize):
+        font = (self.__normalize_fontname(fontname), self.__check_ignore_fontsize(fontsize))
+        if font != self._font:
+            if self._font is not None:
+                self.write('    </span>\n')
+            self.write('    <span style="font-family: %s; font-size:%dpx">\n' %
+                       (fontname, fontsize * self.scale * self.fontscale))
+            self._font = font
+        self.write_text(text)
+        return
+        
+    def __normalize_fontname(self, fontname):
+        if fontname is not None:
+            if '+' in fontname:
+                return fontname[:fontname.find('+')]
+        return fontname
+        
+    def __check_ignore_fontsize(self, fontsize):
+        if True:
+            return 0
+        else:
+            return fontsize
+
+    def put_newline(self):
+        self.write('<br/>')
+        return
+
+    def receive_layout(self, ltpage):
+        def show_group(item):
+            if isinstance(item, LTTextGroup):
+                self.place_border('textgroup', 1, item)
+                for child in item:
+                    show_group(child)
+            return
+
+        def render(item):
+            if isinstance(item, LTPage):
+                self._yoffset += item.y1
+                self.place_border('page', 1, item)
+                self.write('<label name="page %s"></label>\n' % (item.pageid))
+                self._cbox = item.cbox
+                for child in item:
+                    render(child)
+                if item.groups is not None:
+                    for group in item.groups:
+                        show_group(group)
+            elif isinstance(item, LTCurve):
+                self.place_border('curve', 1, item)
+            elif isinstance(item, LTFigure):
+                self.begin_div('figure', 1, item.x0, item.y1, item.width, item.height)
+                for child in item:
+                    render(child)
+                self.end_div('figure')
+            elif isinstance(item, LTImage):
+                self.place_image(item, 1, item.x0, item.y1, item.width, item.height)
+            else:
+                if self.layoutmode == 'exact':
+                    if isinstance(item, LTTextLine):
+                        self.place_border('textline', 1, item)
+                        for child in item:
+                            render(child)
+                    elif isinstance(item, LTTextBox):
+                        self.place_border('textbox', 1, item)
+                        self.place_text('textbox', str(item.index+1), item.x0, item.y1, 20)
+                        for child in item:
+                            render(child)
+                    elif isinstance(item, LTChar):
+                        self.place_border('char', 1, item)
+                        self.place_text('char', item.get_text(), item.x0, item.y1, item.size)
+                else:
+                    if not hasattr(item, 'bbox') or self.__in_cropbox(item.bbox):
+                        if isinstance(item, LTTextLine):
+                            for child in item:
+                                render(child)
+                            if self.layoutmode != 'loose':
+                                self.put_newline()
+                        elif isinstance(item, LTTextBox):
+                            self.begin_div('textbox', 1, item.x0, item.y1, item.width, item.height,
+                                           item.get_writing_mode())
+                            for child in item:
+                                render(child)
+                            self.end_div('textbox')
+                        elif isinstance(item, LTChar):
+                            self.put_text(item.get_text(), item.fontname, item.size)
+                        elif isinstance(item, LTText):
+                            self.write_text(item.get_text())
+            return
+        render(ltpage)
+        self._yoffset += self.pagemargin
+        return
+        
+    def __in_cropbox(self, bbox):
+        c_x0, c_y0, c_x1, c_y1 = self._cbox
+        x0, y0, x1, y1 = bbox
+        return (x0 >= c_x0 and y0 >= c_y0 and x1 <= c_x1 and y1 <= c_y1)
 
     def close(self):
         self.write_footer()
