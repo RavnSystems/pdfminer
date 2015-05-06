@@ -792,10 +792,11 @@ class LTFigure(LTLayoutContainer):
 ##
 class LTPage(LTLayoutContainer):
 
-    def __init__(self, pageid, bbox, rotate=0):
+    def __init__(self, pageid, bbox, cbox, rotate=0):
         LTLayoutContainer.__init__(self, bbox)
         self.pageid = pageid
         self.rotate = rotate
+        self.cbox = cbox
         return
 
     def __repr__(self):
