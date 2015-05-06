@@ -544,13 +544,15 @@ class HTMLConverter2(PDFConverter):
             if isinstance(item, LTPage):
                 self._yoffset += item.y1
                 self.place_border('page', 1, item)
-                self.write('<label name="page %s"></label>\n' % (item.pageid))
+                self.write('<div data-page="%s">\n' % item.pageid)
+                self.write('  <label name="page %s"></label>\n' % (item.pageid))
                 self._cbox = item.cbox
                 for child in item:
                     render(child)
                 if item.groups is not None:
                     for group in item.groups:
                         show_group(group)
+                self.write('</div>\n')
             elif isinstance(item, LTCurve):
                 self.place_border('curve', 1, item)
             elif isinstance(item, LTFigure):
@@ -582,11 +584,12 @@ class HTMLConverter2(PDFConverter):
                             if self.layoutmode != 'loose':
                                 self.put_newline()
                         elif isinstance(item, LTTextBox):
-                            self.begin_div('textbox', 1, item.x0, item.y1, item.width, item.height,
-                                           item.get_writing_mode())
-                            for child in item:
-                                render(child)
-                            self.end_div('textbox')
+                            if len(item.get_text().strip()) > 0:
+                                self.begin_div('textbox', 1, item.x0, item.y1, item.width, item.height,
+                                               item.get_writing_mode())
+                                for child in item:
+                                    render(child)
+                                self.end_div('textbox')
                         elif isinstance(item, LTChar):
                             self.put_text(item.get_text(), item.fontname, item.size)
                         elif isinstance(item, LTText):
