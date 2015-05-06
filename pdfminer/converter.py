@@ -20,6 +20,7 @@ from .utils import apply_matrix_pt
 from .utils import mult_matrix
 from .utils import enc
 from .utils import bbox2str
+from .utils import in_box
 
 
 ##  PDFLayoutAnalyzer
@@ -173,9 +174,11 @@ class TextConverter(PDFConverter):
                 for child in item:
                     render(child)
             elif isinstance(item, LTText):
-                self.write_text(item.get_text())
+                if not hasattr(item, 'bbox') or in_box(item.bbox, self.cur_item.cbox):
+                    self.write_text(item.get_text())
             if isinstance(item, LTTextBox):
-                self.write_text('\n')
+                if not hasattr(item, 'bbox') or in_box(item.bbox, self.cur_item.cbox):
+                    self.write_text('\n')
             elif isinstance(item, LTImage):
                 if self.imagewriter is not None:
                     self.imagewriter.export_image(item)
@@ -546,7 +549,6 @@ class HTMLConverter2(PDFConverter):
                 self.place_border('page', 1, item)
                 self.write('<div data-page="%s">\n' % item.pageid)
                 self.write('  <label name="page %s"></label>\n' % (item.pageid))
-                self._cbox = item.cbox
                 for child in item:
                     render(child)
                 if item.groups is not None:
@@ -577,7 +579,7 @@ class HTMLConverter2(PDFConverter):
                         self.place_border('char', 1, item)
                         self.place_text('char', item.get_text(), item.x0, item.y1, item.size)
                 else:
-                    if not hasattr(item, 'bbox') or self.__in_cropbox(item.bbox):
+                    if not hasattr(item, 'bbox') or in_box(item.bbox, self.cur_item.cbox):
                         if isinstance(item, LTTextLine):
                             for child in item:
                                 render(child)
@@ -598,11 +600,6 @@ class HTMLConverter2(PDFConverter):
         render(ltpage)
         self._yoffset += self.pagemargin
         return
-        
-    def __in_cropbox(self, bbox):
-        c_x0, c_y0, c_x1, c_y1 = self._cbox
-        x0, y0, x1, y1 = bbox
-        return (x0 >= c_x0 and y0 >= c_y0 and x1 <= c_x1 and y1 <= c_y1)
 
     def close(self):
         self.write_footer()

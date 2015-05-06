@@ -141,6 +141,10 @@ def get_bound(pts):
         y1 = max(y1, y)
     return (x0, y0, x1, y1)
 
+def in_box(box, outer):
+    c_x0, c_y0, c_x1, c_y1 = outer
+    x0, y0, x1, y1 = box
+    return (x0 >= c_x0 and y0 >= c_y0 and x1 <= c_x1 and y1 <= c_y1)
 
 # pick
 def pick(seq, func, maxobj=None):
