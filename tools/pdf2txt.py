@@ -5,7 +5,7 @@ from pdfminer.pdfparser import PDFParser
 from pdfminer.pdfinterp import PDFResourceManager, PDFPageInterpreter
 from pdfminer.pdfdevice import PDFDevice, TagExtractor
 from pdfminer.pdfpage import PDFPage
-from pdfminer.converter import XMLConverter, HTMLConverter, TextConverter
+from pdfminer.converter import XMLConverter, HTMLConverter, TextConverter, HTMLConverter2
 from pdfminer.cmapdb import CMapDB
 from pdfminer.layout import LAParams
 from pdfminer.image import ImageWriter
@@ -42,7 +42,7 @@ def main(argv):
     pageno = 1
     scale = 1
     caching = True
-    showpageno = True
+    showpageno = False
     laparams = LAParams()
     for (k, v) in opts:
         if k == '-d': debug += 1
@@ -95,7 +95,12 @@ def main(argv):
     elif outtype == 'html':
         device = HTMLConverter(rsrcmgr, outfp, codec=codec, scale=scale,
                                layoutmode=layoutmode, laparams=laparams,
-                               imagewriter=imagewriter, debug=debug)
+                               imagewriter=imagewriter, debug=debug, showpageno=showpageno)
+                               
+    elif outtype == 'html2':
+        device = HTMLConverter2(rsrcmgr, outfp, codec=codec, scale=scale,
+                               layoutmode=layoutmode, laparams=laparams,
+                               imagewriter=imagewriter, debug=debug, showpageno=showpageno)
     elif outtype == 'tag':
         device = TagExtractor(rsrcmgr, outfp, codec=codec)
     else:
