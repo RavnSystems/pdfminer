@@ -4,7 +4,7 @@ Created on Mon Jul 13 12:43:18 2015
 
 @author: janvh
 """
-
+import json
 import sys
 from pdfminer.pdfinterp import PDFResourceManager, PDFPageInterpreter
 from pdfminer.converter import PDFConverter
@@ -70,7 +70,7 @@ def main(argv):
             interpreter.process_page(page)
         fp.close()
     device.close()
-    print(device.pages)
+    print(json.dumps(device.pages))
 
     return 0
 
