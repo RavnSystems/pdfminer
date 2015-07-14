@@ -75,6 +75,6 @@ def main(argv):
     return 0
 
 if __name__ == '__main__':
-    argv = ['textdetection.py', '../../Data/banking/notext.pdf']
-    main(argv)
-    #sys.exit(main(sys.argv))
+    #argv = ['textdetection.py', '../../Data/banking/notext.pdf']
+    #main(argv)
+    sys.exit(main(sys.argv))
