@@ -110,7 +110,7 @@ def main(argv):
         interpreter = PDFPageInterpreter(rsrcmgr, device)
         for page in PDFPage.get_pages(fp, pagenos,
                                       maxpages=maxpages, password=password,
-                                      caching=caching, check_extractable=True):
+                                      caching=caching, check_extractable=False):
             page.rotate = (page.rotate+rotation) % 360
             interpreter.process_page(page)
         fp.close()
